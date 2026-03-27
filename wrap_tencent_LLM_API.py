@@ -11,9 +11,9 @@ def get_answer(question,model_name):
         }
     }
 
-    # 创建聊天完成请求
+    # Create chat completion request
     response = client.chat.completions.create(
-        model=model_name,  # 此处以 deepseek-v3 为例，可按需更换模型名称
+        model=model_name,  # Example uses deepseek-v3, can be changed as needed
         messages=[
             {"role": "user", "content":question},
         ],

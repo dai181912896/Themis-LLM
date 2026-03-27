@@ -1,68 +1,176 @@
-import numpy as np
-from sklearn.metrics import confusion_matrix, classification_report
+import sys
+import re
 
 
-def evaluate_logs(log_file, ground_truth_words, predicted_words):
-    """
-    评估日志检测效果并计算混淆矩阵
+def evaluate_combined_tpr_fpr(file_paths, threat_entities):
+    combined_normal = []
+    combined_abnormal = []
 
-    参数:
-    log_file -- 日志文件路径，每行一个事件
-    ground_truth_words -- 真实恶意关键词列表
-    predicted_words -- 预测恶意关键词列表
+    # Merge samples from all files
+    for file_path in file_paths:
+        normal, abnormal = group_logs_by_label(file_path)
+        combined_normal.extend(normal)
+        combined_abnormal.extend(abnormal)
 
-    返回:
-    confusion_matrix -- 混淆矩阵
-    classification_report -- 分类报告
-    """
-    # 读取日志文件
-    with open(log_file, 'r',encoding='utf-8') as f:
-        logs = f.readlines()
+    # Calculate metrics uniformly
+    tp = 0  # True Positive
+    fp = 0  # False Positive
+    fn = 0  # False Negative
+    tn = 0  # True Negative
 
-    # 初始化标签数组
-    y_true = []
-    y_pred = []
+    undetected_abnormal = []  # Undetected abnormal logs
+    misclassified_normal = []  # Misclassified normal logs
 
-    # 为每条日志打标签
-    for log in logs:
-        # 真实标签 (1=恶意, 0=正常)
-        gt_malicious = any(word in log for word in ground_truth_words)
-        y_true.append(1 if gt_malicious else 0)
+    # Evaluate abnormal samples
+    for log in combined_abnormal:
+        if any(entity in log for entity in threat_entities):
+            tp += 1
+        else:
+            fn += 1
+            undetected_abnormal.append(log)
 
-        # 预测标签 (1=恶意, 0=正常)
-        pred_malicious = any(word in log for word in predicted_words)
-        y_pred.append(1 if pred_malicious else 0)
+    # Evaluate normal samples
+    for log in combined_normal:
+        if any(entity in log for entity in threat_entities):
+            fp += 1
+            misclassified_normal.append(log)
+        else:
+            tn += 1
 
-    # 计算混淆矩阵
-    cm = confusion_matrix(y_true, y_pred)
+    # Calculate metrics
+    tpr = tp / (tp + fn) if (tp + fn) > 0 else 0
+    fpr = fp / (fp + tn) if (fp + tn) > 0 else 0
 
-    # 计算分类报告
-    report = classification_report(y_true, y_pred, target_names=['正常', '恶意'])
+    # Print results
+    print("\n===== Combined Evaluation Results =====")
+    print(f"{'Total Normal Samples':<20}: {len(combined_normal)}")
+    print(f"{'Total Abnormal Samples':<20}: {len(combined_abnormal)}")
+    print("\nConfusion Matrix Basic Metrics:")
+    print(f"{'True Positive (TP)':<15}: {tp}")
+    print(f"{'False Positive (FP)':<15}: {fp}")
+    print(f"{'False Negative (FN)':<15}: {fn}")
+    print(f"{'True Negative (TN)':<15}: {tn}")
+    print(f"\n{'True Positive Rate':<20}: {tpr:.6f}")
+    print(f"{'False Positive Rate':<20}: {fpr:.6f}")
+    print(f"{'Undetected Abnormal Logs':<20}: {len(undetected_abnormal)}")
+    print(f"{'Misclassified Normal Logs':<20}: {len(misclassified_normal)}")
 
-    return cm, report
+    return {
+        'total_normal': len(combined_normal),
+        'total_abnormal': len(combined_abnormal),
+        'tpr': tpr,
+        'fpr': fpr,
+        'undetected': undetected_abnormal,
+        'misclassified': misclassified_normal
+    }
 
 
-# 示例使用
+
+def group_logs_by_label(file_path):
+    normal_samples = []  # Store normal samples (-LB-)
+    abnormal_samples = []  # Store abnormal samples (-LB+)
+
+    pattern_normal = re.compile(r'-..-$')  # Match -any two characters-
+    pattern_abnormal = re.compile(r'-..\+$')  # Match -any two characters+
+
+    with open(file_path, 'r', encoding='utf-8') as file:
+        for line in file:
+            line = line.strip()
+            if pattern_normal.search(line):
+                normal_samples.append(line)
+            elif pattern_abnormal.search(line):
+                abnormal_samples.append(line)
+
+    return normal_samples, abnormal_samples
+
+
+def evaluate_tpr_fpr(normal_logs, abnormal_logs, threat_entities):
+    tp = 0  # True Positive
+    fp = 0  # False Positive
+    fn = 0  # False Negative
+    tn = 0  # True Negative
+
+    undetected_abnormal = []  # Undetected abnormal logs
+    misclassified_normal = []  # Misclassified normal logs
+
+    for log in abnormal_logs:
+        if any(entity in log for entity in threat_entities):
+            tp += 1  # Hit abnormal, is True Positive
+        else:
+            fn += 1  # Should be abnormal but not detected
+            undetected_abnormal.append(log)
+
+    for log in normal_logs:
+        if any(entity in log for entity in threat_entities):
+            fp += 1  # Misclassified as abnormal, actually normal
+            misclassified_normal.append(log)
+        else:
+            tn += 1  # Correctly classified as normal
+
+    tpr = tp / (tp + fn) if (tp + fn) > 0 else 0  # Recall (True Positive Rate)
+    fpr = fp / (fp + tn) if (fp + tn) > 0 else 0  # False Positive Rate
+
+    print("Confusion Matrix Basic Metrics:")
+    print(f"{'True Positive (TP)':<15}: {tp}")
+    print(f"{'False Positive (FP)':<15}: {fp}")
+    print(f"{'False Negative (FN)':<15}: {fn}")
+    print(f"{'True Negative (TN)':<15}: {tn}")
+
+    return tpr, fpr, undetected_abnormal, misclassified_normal
+
+
+def count_unique_entities(file_path):
+    unique_entities = set()
+    import json
+    with open(file_path, 'r', encoding='utf-8') as f:
+        for line in f:  # Read JSON objects line by line
+            data = json.loads(line.strip())
+            unique_entities.update(data.get("detected_suspicious_entities", []))
+
+    print(f"Number of unique detected_suspicious_entities: {len(unique_entities)}")
+    print("Unique entities:")
+    for entity in unique_entities:
+        print(entity)
+    return list(unique_entities)
+
+
+
+
+def main():
+    # if len(sys.argv) < 2:
+    #     print("Usage: python script.py <log_file>")
+    #     sys.exit(1)
+    #
+    # log_file = sys.argv[1]
+    # file_paths = [
+    #     "data/rawlogs/training_preprocessed_logs_M6-CVE-2017-11882_windows_h1",
+    #     "data/rawlogs/training_preprocessed_logs_M6-CVE-2017-11882_windows_h2"  # Please replace with actual second file path
+    # ]
+    # threat_entities = [
+    #     '192.168.223.3', 'pypayload.exe', '0xalsaheel.com','msf.rtf','payload.exe','msf.exe','35.165.209.195','c:/users/aalsahee/appdata/locallow/microsoft/cryptneturlcache/metadata/94308059b57b3142e455b38a6eb92015','c:/users/aalsahee/appdata/local/microsoft/windows/temporaryinternetfiles/counters.dat','aalsahee/index.html'
+    # ]
+    # results = evaluate_combined_tpr_fpr(file_paths, threat_entities)
+
+# ---------------
+    log_file_path=r"data/rawlogs/training_preprocessed_logs_S1-CVE-2015-5122_windows"
+    test=['dllhost','svchost','firefox.exe']
+    threat_entities=['192.168.223.3','firefox','winword','svchost']
+
+
+
+    print(threat_entities)
+
+    normal, abnormal = group_logs_by_label(log_file_path)
+
+    tpr, fpr, undetected_abnormal, misclassified_normal = evaluate_tpr_fpr(normal, abnormal, threat_entities)
+
+
+
+    # print("Undetected Abnormal Logs:", undetected_abnormal)
+    # print("Misclassified Normal Logs:", misclassified_normal)
+    print(f"True Positive Rate (TPR): {tpr:.6f}")
+    print(f"False Positive Rate (FPR): {fpr:.6f}")
+# ----------------------------------
+
 if __name__ == "__main__":
-    # 示例数据 - 替换为您的实际数据
-    log_file = "other_code/linux_logs_preprocess/data/parsed/no agent/processed_no_agent/parsed_shellshock-pene.txt"  # 您的日志文件路径
-    malicious_groundtruth = ["/tmp/bdoor", "172.31.77.48", "cgi-bin/bdoor","env.cgi",'ping.cgi']  # 真实恶意关键词
-    predic_words = ["/tmp/bdoor",'172.31.77.48','sbrainconnect.com' ,'ping.cgi','env.cgi','libnsl','libc.so.6','libdl','/curl']  # 预测恶意关键词
-
-    # 计算评估指标
-    cm, report = evaluate_logs(log_file, malicious_groundtruth, predic_words)
-
-    print("混淆矩阵:")
-    print(cm)
-    print("\n分类报告:")
-    print(report)
-
-    # 从混淆矩阵中提取各项指标
-    tn, fp, fn, tp = cm.ravel()
-    print("\n详细指标:")
-    print(f"真阴性(TN): {tn} | 假阳性(FP): {fp}")
-    print(f"假阴性(FN): {fn} | 真阳性(TP): {tp}")
-    print(f"准确率: {(tp + tn) / (tp + tn + fp + fn):.2f}")
-    print(f"召回率: {tp / (tp + fn):.2f}")
-    print(f"精确率: {tp / (tp + fp):.2f}")
-    print(f"F1分数: {2 * tp / (2 * tp + fp + fn):.2f}")
+    main()

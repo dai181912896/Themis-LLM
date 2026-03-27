@@ -5,38 +5,38 @@ import qianfan
 from pymochow.configuration import Configuration
 from pymochow.model.table import AnnSearch, HNSWSearchParams
 
-# 初始化千帆AI平台的嵌入模型对象
+# Initialize Qianfan AI platform embedding model object
 emb = qianfan.Embedding()
 
-# 定义待查询的问题文本
+# Define question text to query
 question = ""
 
-# 获取问题文本的嵌入向量
+# Get embedding vector of question text
 resp = emb.do(texts=[question])
 question_embedding = resp['data'][0]['embedding']
 
-# 使用配置信息初始化向量数据库客户端
+# Initialize vector database client using configuration information
 config_obj = Configuration(credentials=config.credentials, endpoint=config.endpoint)
 client = pymochow.MochowClient(config_obj)
 
-# 选择数据库
+# Select database
 db = client.database("document")
 
 try:
-    # 获取指定表的描述信息
+    # Get description information of specified table
     table = db.describe_table("chunks")
-    # 构建近似最近邻搜索对象
+    # Build approximate nearest neighbor search object
     anns = AnnSearch(
-        vector_field="vector",  # 指定用于搜索的向量字段名
-        vector_floats=question_embedding,  # 提供查询向量
-        params=HNSWSearchParams(ef=200, limit=1)  # 设置HNSW算法参数和返回结果的限制数量
+        vector_field="vector",  # Specify vector field name for search
+        vector_floats=question_embedding,  # Provide query vector
+        params=HNSWSearchParams(ef=200, limit=1)  # Set HNSW algorithm parameters and return result limit
     )
-    # 执行搜索操作
+    # Execute search operation
     res = table.search(anns=anns)
-    # 打印搜索结果
+    # Print search results
     print(res)
-except Exception as e:  # 捕获并打印所有异常信息
+except Exception as e:  # Catch and print all exception information
     print(f"Error: {e}")
 
-# 关闭客户端连接
+# Close client connection
 client.close()
