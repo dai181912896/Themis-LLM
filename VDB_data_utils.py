@@ -4,34 +4,33 @@ from utils import *
 import traceback
 import  os
 
-# Milvus connection information
-# IMPORTANT: Replace with your actual credentials before use
-CLUSTER_ENDPOINT = "YOUR_MILVUS_CLUSTER_ENDPOINT"
-TOKEN = "YOUR_MILVUS_TOKEN"
+# Milvus 连接信息
+CLUSTER_ENDPOINT = "https://in05-a7d87b11006b15f.serverless.ali-cn-hangzhou.cloud.zilliz.com.cn"
+TOKEN = "os.getenv("ZILLIZ_TOKEN", "")"
 
 
-# Connect to Milvus
+# 连接 Milvus
 client = MilvusClient(uri=CLUSTER_ENDPOINT, token=TOKEN)
 
 
 def load_ndjson_data(file_path):
-    """Read NDJSON file line by line"""
+    """逐行读取 NDJSON 文件"""
     data_list = []
     with open(file_path, "r", encoding="utf-8") as file:
         for line in file:
-            if line.strip():  # Skip empty lines
-                data_list.append(json.loads(line))  # Parse JSON and add to list
+            if line.strip():  # 跳过空行
+                data_list.append(json.loads(line))  # 解析 JSON 并添加到列表
     return data_list
 
 
 def extract_attack_sc(file_path):
-    """Extract attack_sc field from filename"""
+    """从文件名中提取 attack_sc 字段"""
     filename = os.path.basename(file_path)
     return filename.split("_")[3] if "_" in filename else "Unknown"
 
 
 def process_and_insert(datas, attack_sc):
-    """Parse JSON data and insert into Milvus"""
+    """解析 JSON 数据并插入 Milvus"""
     entities = []
     for data in datas:
         attack_timeline = data.get("attack_timeline", [])
@@ -47,16 +46,16 @@ def process_and_insert(datas, attack_sc):
                 "phase_description": event.get("phase_description", ""),
                 "attack_sc": attack_sc,
             }
-            entity["my_vector"] = get_Embedding(entity["evidence_set"])  # Generate embedding vector
+            entity["my_vector"] = get_Embedding(entity["evidence_set"])  # 生成嵌入向量
             entities.append(entity)
 
     if entities:
-        client.insert(collection_name=COLLECTION_NAME, data=entities)  # Batch insert
+        client.insert(collection_name=COLLECTION_NAME, data=entities)  # 批量插入
         print(f"Inserted {len(entities)} records for attack_sc: {attack_sc}")
 
 
 def main(directory):
-    """Batch process all JSON files under directory"""
+    """批量处理目录下的所有 JSON 文件"""
     file_paths = glob(os.path.join(directory, "**/*.json"), recursive=True)
 
     for file_path in file_paths:
@@ -70,11 +69,11 @@ def main(directory):
 
 from glob import glob
 
-# Run import process
+# 运行导入流程
 COLLECTION_NAME = "attack_pattern_s4_s1s2s3"
 def main():
     file_path="./data/jsons/filtered_seq_graph_training_preprocessed_logs_S2-CVE-2015-3105_windows.dot.json"
-    data = load_ndjson_data(file_path)  # Please replace with actual JSON file path
+    data = load_ndjson_data(file_path)  # 请替换为实际的 JSON 文件路径
     process_and_insert(data,'s4')
 
 if __name__ == "__main__":
@@ -82,4 +81,4 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         print(traceback.format_exc())
-        print(f"Error occurred: {e}")
+        print(f"发生错误：{e}")

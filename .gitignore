@@ -1,48 +1,10 @@
-# Data directories
-data/
-P1data/
-
-# Configuration files with sensitive information
-config.py
-LLM_config.py
-
-# Python
+.env
+*.pyc
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual environments
-venv/
-ENV/
-env/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
 *.log
+chroma_db/
+pgdata/
+data/
+*.zip
+demo.mp4
+.ipynb_checkpoints/
