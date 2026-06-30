@@ -249,7 +249,7 @@ def time_windows_scan(log_file, alert, collection_name):
             data=[query_sequences_vector],
             limit=3,
             search_params={"metric_type": "COSINE"},
-            output_fields=["evidence_set", "entity_actions", "phase_type", "core_entities", "phase_description"]
+            output_fields=["evidence_set", "entity_actions", "phase_type", "core_entities", "phase_description", "neighbors_prior", "neighbors_next"]
         )
         result_json = []
         for hits in res:
@@ -321,7 +321,7 @@ def neighbor_scan(log_file, alert, collection_name):
             data=[query_sequences_vector],
             limit=1,
             search_params={"metric_type": "COSINE"},
-            output_fields=["evidence_set", "entity_actions", "phase_type", "core_entities", "phase_description"]
+            output_fields=["evidence_set", "entity_actions", "phase_type", "core_entities", "phase_description", "neighbors_prior", "neighbors_next"]
         )
         result_json = []
         for hits in res:

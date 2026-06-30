@@ -164,6 +164,23 @@ def build_kill_chain_kb(log_file, emal_file, output_file, chunk_size=20):
     print(f"\n[KillChain-KB] Done: {len(kb_units)} units, {total_tokens} tokens")
     print(f"  Phase distribution: {phase_dist}")
     print(f"  -> {output_file}")
+
+    # Also export NDJSON for VDB_data_utils::process_and_insert (Paper §4.1 step 3 wiring)
+    ndjson_file = output_file.rsplit(".", 1)[0] + ".ndjson"
+    with open(ndjson_file, "w", encoding="utf-8") as f:
+        for i, u in enumerate(kb_units):
+            entry = {"attack_timeline": [{
+                "phase_type": u.get("phase_type", u.get("phase", "")),
+                "core_entities": u.get("core_entities", ""),
+                "evidence_set": u.get("evidence_set", ""),
+                "phase_description": u.get("phase_description", u.get("behavior", "")),
+                "entity_actions": "",
+                "neighbors_prior": u.get("neighbors_prior", ""),
+                "neighbors_next": u.get("neighbors_next", ""),
+                "chunk_index": str(i),
+            }], "attack_sc": "auto"}
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    print(f"  -> {ndjson_file} (NDJSON for VDB_data_utils)")
     return output
 
 
