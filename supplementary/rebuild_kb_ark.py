@@ -24,7 +24,7 @@ from pymilvus import MilvusClient, CollectionSchema, FieldSchema, DataType
 from openai import OpenAI
 
 ZILLIZ_URI = "https://in05-a7d87b11006b15f.serverless.ali-cn-hangzhou.cloud.zilliz.com.cn"
-ZILLIZ_TOK = os.environ.get("ZILLIZ_TOKEN", "os.getenv("ZILLIZ_TOKEN", "")")
+ZILLIZ_TOK = os.environ.get("ZILLIZ_TOKEN", "")
 
 SCALAR_FIELDS = ["evidence_set", "core_entities", "phase_type",
                  "chunk_index", "attack_sc", "entity_actions", "phase_description"]

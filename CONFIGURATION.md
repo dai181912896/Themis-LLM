@@ -1,87 +1,64 @@
 # Themis Configuration Guide
 
-This document provides instructions for configuring the Themis system with your API credentials.
+Themis is **fully environment-driven** — there are no hardcoded credentials and
+no `config.py` / `LLM_config.py` to edit. All settings are read from the
+environment (a `.env` file or your shell), centralized in
+[`themis/config.py`](themis/config.py).
 
-## Configuration Files
+## Configure credentials
 
-Before running the system, you need to configure the following files with your actual API credentials:
-
-### 1. config.py
-
-Copy `config.example.py` to `config.py` and fill in your credentials:
-
-```python
-account = 'YOUR_BCE_ACCOUNT'  # Your BCE account
-api_key = 'YOUR_BCE_API_KEY'  # Your BCE API key
-endpoint = 'http://YOUR_ENDPOINT:PORT'  # Your BCE endpoint
-```
-
-Also set the Qianfan access keys:
-
-```python
-os.environ["QIANFAN_ACCESS_KEY"] = "YOUR_QIANFAN_ACCESS_KEY"
-os.environ["QIANFAN_SECRET_KEY"] = "YOUR_QIANFAN_SECRET_KEY"
-```
-
-### 2. LLM_config.py
-
-Copy `LLM_config.example.py` to `LLM_config.py` and configure your LLM API client:
-
-```python
-client = OpenAI(
-    base_url="YOUR_LLM_API_ENDPOINT",
-    api_key="YOUR_LLM_API_KEY"
-)
-```
-
-Supported LLM providers:
-- Tencent Cloud LKEAP
-- Volces ARK
-- OpenAI Hub
-
-### 3. VDB_data_utils.py
-
-Update the Milvus connection information:
-
-```python
-CLUSTER_ENDPOINT = "YOUR_MILVUS_CLUSTER_ENDPOINT"
-TOKEN = "YOUR_MILVUS_TOKEN"
-```
-
-### 4. utils.py
-
-Update the Tencent Cloud credentials for embedding generation:
-
-```python
-cred = credential.Credential("YOUR_TENCENT_SECRET_ID", "YOUR_TENCENT_SECRET_KEY")
-```
-
-## Getting API Credentials
-
-### Tencent Cloud
-- Visit: https://console.cloud.tencent.com/cam/capi
-- Create API keys (SecretId and SecretKey)
-
-### Qianfan (Baidu AI Cloud)
-- Visit: https://cloud.baidu.com/product/wenxinworkshop
-- Get your Access Key and Secret Key
-
-### Milvus / Zilliz Cloud
-- Visit: https://cloud.zilliz.com/
-- Create a cluster and get your connection credentials
-
-## Security Notes
-
-- **NEVER commit actual API keys to version control**
-- Keep your credentials secret and secure
-- Use environment variables when possible
-- Rotate your keys regularly
-
-## Running the System
-
-After configuration:
+Copy the example env file and fill in your keys:
 
 ```bash
-python attack_Investigation_byLLM.py --log_file <path> --alert <entity> --collection <name> --output <path>
+cp .env.example .env
+# edit .env
 ```
 
+| Variable | Purpose | Where to get it |
+|---|---|---|
+| `ARK_API_KEY` | LLM + embedding API key (Volcengine Ark) | Volcengine console → API Key |
+| `ARK_BASE_URL` | Ark API base URL (default set in `themis/config.py`) | — |
+| `ARK_MODEL` | Chat model (default `ark-code-latest`) | — |
+| `ARK_EMBEDDING_MODEL` | Embedding model (default `doubao-embedding-vision`, 2048-dim) | — |
+| `ZILLIZ_TOKEN` | Zilliz/Milvus Kill Chain KB token | https://cloud.zilliz.com/ |
+| `ZILLIZ_URI` | Zilliz cluster URI (default set in `themis/config.py`) | — |
+| `TENCENT_SECRET_ID` / `TENCENT_SECRET_KEY` | Optional: legacy Tencent LKEAP embeddings (used only when `ARK_API_KEY` is unset) | https://console.cloud.tencent.com/cam/capi |
+
+## Behavior flags (env-overridable)
+
+These tune the investigation loop (see [`themis/config.py`](themis/config.py)):
+
+| Flag | Default | Effect |
+|---|---|---|
+| `THEMIS_GRAPH_MODE` | `1` | Parse subject/object for adjacency (no substring) |
+| `THEMIS_MATCH_MODE` | `relaxed` | basename / IP-no-port exact matching |
+| `THEMIS_HUB_EXPANSION` | `1` | Surface dispatcher-hub sibling fork-children |
+| `THEMIS_FILTER_SYSDLL` | `1` | Filter universal system-DLL-load noise |
+| `THEMIS_CAP_SELFEXTRACT` | unset | Cap PyInstaller self-extraction artifacts |
+| `THEMIS_HUB_CHILD_ACTIONS` | unset | Append sibling child-action evidence |
+| `THEMIS_FILTER_NOISE` | unset | Filter noise entities during BFS |
+| `THEMIS_MAX_EXPANSIONS` | `0` | BFS entity cap (0 = unlimited) |
+| `THEMIS_SLEEP` | `2` | Seconds between LLM iterations |
+
+## Security notes
+
+- **Never commit real API keys.** `.env` is git-ignored; `.env.example` carries only placeholders.
+- Prefer environment variables; rotate keys regularly.
+
+## Run
+
+```bash
+# 1. Build the Kill Chain knowledge base
+python supplementary/kill_chain_annotator.py \
+  --log data/attack_triples.txt --entities data/malicious_entities.json \
+  --out data/kb/annotated_kb.json
+
+# 2. Run investigation (Stage 2 + 3)
+python supplementary/run_themis_investigation.py \
+  --input data/compressed_triples.tsv --ground-truth data/ground_truth.json \
+  --collection attack_pattern_s1_s2s3s4 --out results/ --alert certutil.exe
+
+# 3. Generate the report (Stage 4)
+python supplementary/story_generator.py \
+  --cache results/reasoning_cache.jsonl --out results/investigation_report.md
+```

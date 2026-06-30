@@ -1,28 +1,31 @@
-"""LLM call wrapper.
+"""LLM call wrapper (Volcengine Ark, env-driven).
 
-Redirected to Volcengine Ark (env-driven) — the supported path. The legacy
-LLM_config.client pointed at a leaked/dead openai-hub key. Signature of
-get_answer (reasoning, answer, stats) is unchanged so attack_Investigation_byLLM
-needs no edit. Model is env-overridable (ARK_MODEL=ark-code-latest).
+``get_answer`` returns ``(reasoning, answer, stats)``. Model is
+env-overridable (``ARK_MODEL=ark-code-latest``). Signature is stable so the
+investigation loop, KB annotator, and story generator all share one client.
 """
 import os
+import time
+
 from openai import OpenAI
+
+from .config import ARK_BASE_URL, ARK_RETRIES
 
 _client = OpenAI(
     api_key=os.environ.get("ARK_API_KEY", ""),
-    base_url=os.environ.get("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/coding/v3"),
+    base_url=ARK_BASE_URL,
 )
 
 
 def get_answer(question, model_name):
-    import time
+    """Call the LLM with retry/backoff. Returns (reasoning, answer, stats)."""
     stats = {
         'tokens': {'prompt': 0, 'completion': 0, 'reasoning': 0, 'total': 0}
     }
     model = os.environ.get("ARK_MODEL") or model_name  # ARK_MODEL overrides the legacy deepseek name
     response = None
     last = None
-    for attempt in range(int(os.environ.get("ARK_RETRIES", "6"))):
+    for attempt in range(ARK_RETRIES):
         try:
             response = _client.chat.completions.create(
                 model=model,

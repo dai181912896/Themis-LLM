@@ -13,14 +13,18 @@ THEMIS operates in two stages:
 ## Architecture
 
 ```
+Core library: themis/   (config, llm, embeddings, vector_db, logs, graph, prompts, investigation, kb, story)
+Entry points: attack_Investigation_byLLM.py, supplementary/kill_chain_annotator.py, supplementary/story_generator.py
+              (thin CLI shims that delegate to themis/ — kept for backward-compatible invocation)
+
 Stage 1: Knowledge Base Construction
-  ├── Kill-Chain Knowledge Base Annotation (supplementary/kill_chain_annotator.py)
-  └── Semantic Embedding & Index (supplementary/rebuild_kb_ark.py, VDB_data_utils.py)
+  ├── Kill-Chain Knowledge Base Annotation (themis/kb.py)
+  └── Semantic Embedding & Index (themis/embeddings.py, themis/vector_db.py)
 
 Stage 2: Attack Investigation
-  ├── Adjacency-Prioritized Expansion (utils.py, supplementary/graph_utils.py)
-  ├── Causal Reasoning with RAG (attack_Investigation_byLLM.py, supplementary/normalize.py)
-  └── Story Generation (supplementary/story_generator.py)
+  ├── Adjacency-Prioritized Expansion (themis/graph.py, themis/logs.py)
+  ├── Causal Reasoning with RAG (themis/prompts.py, themis/investigation.py)
+  └── Story Generation (themis/story.py)
 
 Evaluation:
   ├── Event-level TPR/FPR (supplementary/evaluate_fullgraph_event.py)
@@ -70,13 +74,20 @@ python supplementary/evaluate_fullgraph_event.py \
 
 | Module | File | Description |
 |--------|------|-------------|
-| Kill-Chain KB Annotation | `supplementary/kill_chain_annotator.py` | Extracts malicious events, annotates with Kill Chain phases |
-| KB Construction (embedding) | `supplementary/rebuild_kb_ark.py` | Embeds KB units with semantic vectors |
-| Investigation (main loop) | `attack_Investigation_byLLM.py` | Iterative BFS expansion + LLM causal reasoning |
-| Graph Expansion | `utils.py`, `supplementary/graph_utils.py` | Adjacency-prioritized neighbor exploration |
-| Entity Normalization | `supplementary/normalize.py` | Basename/IP/normalized entity matching |
-| Story Generation | `supplementary/story_generator.py` | Consolidates reasoning into analyst-ready report |
+| Configuration | `themis/config.py` | Endpoints, Kill Chain phases, behavior flags (env-driven) |
+| LLM call wrapper | `themis/llm.py` | Volcengine Ark client with retry/backoff |
+| Embeddings | `themis/embeddings.py` | doubao-embedding-vision (Ark-first) |
+| Vector DB client | `themis/vector_db.py` | Zilliz/Milvus KB client + insertion |
+| Kill-Chain KB Annotation | `themis/kb.py` | Extracts malicious events, annotates with Kill Chain phases |
+| Graph Expansion | `themis/graph.py` | Adjacency-prioritized neighbor exploration + hub/noise logic |
+| Log utilities | `themis/logs.py` | Triple log loading, chunking, JSON parsing |
+| Causal Reasoning prompts | `themis/prompts.py` | normal / backward / forward prompt builders |
+| Investigation (main loop) | `themis/investigation.py` | Iterative BFS expansion + LLM causal reasoning |
+| Story Generation | `themis/story.py` | Consolidates reasoning into analyst-ready report |
+| Entity Normalization | `supplementary/normalize.py` | Basename/IP/normalized entity matching (canonical) |
+| KB rebuild (Ark embeddings) | `supplementary/rebuild_kb_ark.py` | Re-embed KB into *_doubao collections |
 | Event-level Evaluation | `supplementary/evaluate_fullgraph_event.py` | TPR/FPR over full provenance graph |
+| Node-level Evaluation | `supplementary/evaluate_nodelevel.py` | Strict per-node TPR/FPR |
 | Graph Compression | `supplementary/compress_connected_subgraph.py` | BFS-based subgraph compression |
 
 ## Requirements

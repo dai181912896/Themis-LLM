@@ -20,11 +20,11 @@ PY = os.environ.get("THEMIS_PY", sys.executable)
 PLACEHOLDERS = {"other_entity", "无", "none", "n/a", "null", "xxx", "...", "example.exe"}
 
 DEFAULT_ENV = {
-    "ARK_API_KEY": "os.getenv("ARK_API_KEY", "")",
+    "ARK_API_KEY": os.environ.get("ARK_API_KEY", ""),
     "ARK_BASE_URL": "https://ark.cn-beijing.volces.com/api/coding/v3",
     "ARK_MODEL": "ark-code-latest",
     "ARK_EMBEDDING_MODEL": "doubao-embedding-vision",
-    "ZILLIZ_TOKEN": "os.getenv("ZILLIZ_TOKEN", "")",
+    "ZILLIZ_TOKEN": os.environ.get("ZILLIZ_TOKEN", ""),
     "THEMIS_GRAPH_MODE": "1",
     "THEMIS_MATCH_MODE": "relaxed",
     "THEMIS_HUB_EXPANSION": "1",
