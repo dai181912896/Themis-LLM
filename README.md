@@ -83,6 +83,9 @@ python supplementary/evaluate_fullgraph_event.py \
 | Log utilities | `themis/logs.py` | Triple log loading, chunking, JSON parsing |
 | Causal Reasoning prompts | `themis/prompts.py` | normal / backward / forward prompt builders |
 | Investigation (main loop) | `themis/investigation.py` | Iterative BFS expansion + LLM causal reasoning |
+| Batch Pre-Filter | `themis/prefilter.py` | Dedup + cache-I/O + learned-noise filtering per fetched chunk |
+| Noise Rules Store | `themis/rules.py` | Thread-safe persisted learned noise patterns (`noise_rules.json`) |
+| Runtime Noise Analyzer | `themis/noise_analyzer.py` | Optional parallel LLM thread that learns noise patterns |
 | Story Generation | `themis/story.py` | Consolidates reasoning into analyst-ready report |
 | Entity Normalization | `supplementary/normalize.py` | Basename/IP/normalized entity matching (canonical) |
 | KB rebuild (Ark embeddings) | `supplementary/rebuild_kb_ark.py` | Re-embed KB into *_doubao collections |

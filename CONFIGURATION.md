@@ -38,6 +38,24 @@ These tune the investigation loop (see [`themis/config.py`](themis/config.py)):
 | `THEMIS_FILTER_NOISE` | unset | Filter noise entities during BFS |
 | `THEMIS_MAX_EXPANSIONS` | `0` | BFS entity cap (0 = unlimited) |
 | `THEMIS_SLEEP` | `2` | Seconds between LLM iterations |
+| `THEMIS_DEDUP` | `1` | Drop duplicate log lines within each fetched chunk |
+| `THEMIS_FILTER_CACHE_IO` | `1` | Drop benign cache-file read/write (browser cache, registry hives, NTFS, prefetch, `.tmp`) |
+| `THEMIS_NOISE_ANALYZER` | `0` | Runtime parallel LLM analyzer that learns new noise patterns (extra token cost; off by default) |
+| `THEMIS_NOISE_RULES` | `noise_rules.json` | Path to the persisted learned-rules file written by the analyzer, re-read each batch |
+
+### Batch pre-filter & runtime noise analyzer
+
+At each chunk fetch, `neighbor_scan` applies a pre-filter (`themis.prefilter`):
+duplicate lines are dropped, then benign cache-file read/write is dropped via
+the hardcoded `CACHE_IO_SEED` patterns, then any patterns the analyzer learned
+into `rules.json`. Currently-detected entities (IoCs like `certutil`,
+`mimikatz`) are **never** dropped — only dedup applies to them. An emptied chunk
+is skipped entirely (no LLM call).
+
+With `THEMIS_NOISE_ANALYZER=1`, a background thread (`themis.noise_analyzer`)
+analyzes each raw chunk in parallel and appends generalized noise patterns to
+`rules.json`; the main loop re-reads it each batch, so rules improve within a
+run and persist across runs.
 
 ## Security notes
 

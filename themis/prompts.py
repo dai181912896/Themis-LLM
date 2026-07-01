@@ -12,6 +12,51 @@ Placeholders (interpolated, not ``.format``):
 """
 
 
+def generate_noise_analysis_prompt(chunk_text, detected_entities):
+    """Prompt for the runtime noise analyzer.
+
+    Identifies redundant normal noise (cache reads, repeated benign housekeeping,
+    system self-I/O) NOT part of the attack chain, and generalizes each into a
+    regex on the normalized object path (lowercase, forward slashes) plus the
+    action(s) it applies to. Never flags entities in ``detected_entities``.
+    """
+    detected_list = ", ".join(detected_entities) if detected_entities else "(none yet)"
+    prompt = f"""You are a provenance-noise analyst. You are given a batch of system audit
+events formatted as subject-action-object triples from an active attack investigation.
+Your job is to find REDUNDANT NORMAL NOISE — events that are benign system
+housekeeping or cache/bookkeeping and carry NO attack signal — so they can be
+filtered out in future batches to save analysis budget.
+
+Events involving ANY of these attack entities are NEVER noise and MUST be kept:
+{detected_list}
+
+Noise categories (examples, not exhaustive):
+- Cache / temp reads & writes: browser/webcache, "temporary internet files",
+  app caches (cache/code cache/gpucache), registry hives (ntuser.dat, usrclass.dat),
+  NTFS metadata ($mft, $logfile, $usnjrnl), prefetch, icon/font/thumbcache, *.tmp.
+- Repeated benign self-I/O: a normal process reading its own config/logs/fonts.
+- Telemetry / housekeeping: event log, scheduled-task housekeeping, font loading.
+
+For each distinct noise pattern, generalize it into a REGEX over the NORMALIZED
+object path (lowercase, forward slashes — e.g. "c:/users/x/appdata/local/y/cache"),
+NOT an exact line. Multiple events that share one pattern -> one regex.
+
+Output STRICTLY this JSON and nothing else:
+{{
+  "noise_patterns": [
+    {{"regex": "appdata/local/[^/]+/cache", "action": "read|write", "reason": "browser/app cache"}},
+    {{"regex": "prefetch", "action": "read", "reason": "windows prefetch"}}
+  ]
+}}
+
+If the batch contains no generalizable noise, return {{"noise_patterns": []}}.
+
+--- EVENT BATCH ---
+{chunk_text}
+"""
+    return prompt
+
+
 def generate_normal_prompt(current_window_sequence, previous_window_summary, payload, rag_context, detected):
     """Generate prompt for the normal (time-window) investigation mode."""
     prompt = f"""You are a security incident forensics expert specializing in attack investigation using heterogeneous system logs. Logs are preprocessed as subject-action-object triples. Below is a sample:

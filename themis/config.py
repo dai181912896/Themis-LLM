@@ -39,6 +39,39 @@ def max_expansions() -> int:
     """0 = unlimited BFS expansion."""
     return int(os.environ.get("THEMIS_MAX_EXPANSIONS", "0"))
 
+# --- Batch pre-filter + runtime noise analyzer (Stage 2 optimization) -------
+NOISE_RULES_PATH = os.environ.get("THEMIS_NOISE_RULES", "noise_rules.json")
+
+# Hardcoded cache-file read/write noise patterns (fuzzy, matched on the
+# normalized object path). Only applied to action in (read, write). Never
+# matches a currently-detected entity — the pre-filter protects those.
+CACHE_IO_SEED = [
+    r"appdata/local/microsoft/windows/(webcache|inetcache|history|inetcookies)",
+    r"appdata/local/[^/]+/(cache|cache2|code cache|gpucache|shadercache)",
+    r"temporary internet files",
+    r"(webcachev01\.dat|index\.dat)",
+    r"appdata/locallow",
+    r"(iconcache\.db|fontcache|thumbcache_\d+\.db)",
+    r"ntuser\.dat(\.log\d*)?$",
+    r"usrclass\.dat(\.log\d*)?$",
+    r"\$(mft|logfile|usnjrnl)",
+    r"/prefetch/",
+    r"\.tmp$",
+]
+
+
+def dedup_enabled() -> bool:
+    return os.environ.get("THEMIS_DEDUP", "1") == "1"
+
+
+def filter_cache_io_enabled() -> bool:
+    return os.environ.get("THEMIS_FILTER_CACHE_IO", "1") == "1"
+
+
+def noise_analyzer_enabled() -> bool:
+    """Runtime parallel LLM analyzer is OFF by default (extra token cost)."""
+    return os.environ.get("THEMIS_NOISE_ANALYZER", "0") == "1"
+
 # Default environment for the subprocess launcher. (Mirrors the values in
 # supplementary/run_themis_investigation.py — single source of truth here.)
 DEFAULT_ENV = {

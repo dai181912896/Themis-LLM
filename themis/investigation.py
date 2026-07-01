@@ -24,6 +24,10 @@ from .prompts import (
     generate_normal_prompt, generate_backward_prompt, generate_forward_prompt,
 )
 from .llm import get_answer
+from . import config, rules
+from .prefilter import filter_chunk
+from .noise_analyzer import NoiseAnalyzer
+from supplementary.normalize import _basename
 
 
 def time_windows_scan(log_file, alert, collection_name):
@@ -112,8 +116,35 @@ def neighbor_scan(log_file, alert, collection_name):
     total_reasoning_tokens = 0
     total_all_tokens = 0
 
+    # --- Batch pre-filter + optional runtime noise analyzer (Stage 2 opt.) ---
+    # Seed the learned-rules file so the analyzer has a place to write; the
+    # hardcoded cache-I/O patterns live in config.CACHE_IO_SEED (applied by
+    # filter_chunk), so rules.json holds only analyzer-learned patterns.
+    analyzer = NoiseAnalyzer(config.NOISE_RULES_PATH) if config.noise_analyzer_enabled() else None
+    if analyzer:
+        analyzer.start()
+        print(f"[noise_analyzer] started -> {config.NOISE_RULES_PATH}")
+
     while chunk_list_queue:
         chunk = chunk_list_queue.popleft()
+
+        # Analyze the RAW chunk in parallel (before filtering) so the analyzer
+        # sees cache/noise lines the filter is about to drop.
+        if analyzer:
+            analyzer.submit(chunk, alert_entites)
+
+        # Reload learned rules each batch (feedback loop: patterns learned early
+        # in the run, or persisted from a prior run, apply to later batches).
+        learned = rules.load_rules(config.NOISE_RULES_PATH)
+        protected = {_basename(e) for e in alert_entites}   # never filter IoCs
+        chunk, pf_stats = filter_chunk(chunk, learned, protected)
+        if not chunk:
+            print(f"[prefilter] chunk fully filtered (dropped {pf_stats['total_dropped']}); skipping LLM call")
+            continue                                            # saves an embedding/KB/LLM call
+        if pf_stats["total_dropped"]:
+            print(f"[prefilter] kept {pf_stats['kept']} (dedup {pf_stats['deduped']}, "
+                  f"cache_io {pf_stats['cache_io']}, learned {pf_stats['learned']})")
+
         query_sequences = ','.join(chunk)
         query_sequences_vector = get_Embedding(query_sequences)
         res = client.search(
@@ -168,12 +199,19 @@ def neighbor_scan(log_file, alert, collection_name):
         time.sleep(int(os.environ.get("THEMIS_SLEEP", "2")))
 
     cost_time = time.time() - start_time
+    analyzer_tokens = 0
+    if analyzer:
+        analyzer.stop()
+        analyzer.join(timeout=60)
+        analyzer_tokens = analyzer.tokens
+        print(f"[noise_analyzer] stopped — learned {analyzer.learned} pattern(s), {analyzer_tokens} tokens")
     cost_results = {
         "cost_time": cost_time,
         "total_completion_tokens": total_completion_tokens,
         "total_prompt_tokens": total_prompt_tokens,
         "total_reasoning_tokens": total_reasoning_tokens,
-        "total_all_tokens": total_all_tokens
+        "total_all_tokens": total_all_tokens,
+        "analyzer_tokens": analyzer_tokens
     }
     return total_attack_results_json, alert_entites, cost_results
 
