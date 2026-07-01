@@ -48,19 +48,6 @@ themis_datasets/
 | ATLAS / Ubuntu | `ground_truth.json` (`{"malicious_entities": [{"value": ...}]}`) |
 | SimulatedW10 / WS12 | `gold_entities.json` + `seeds.json` (NodLink native label format) |
 
-## Scenario sizes (raw)
-
-| Scenario | Size |
-|---|---|
-| atlas_s1 | ~3.6 MB |
-| atlas_s3 | ~4.8 MB |
-| nodlink_w10_apt29 | ~639 MB |
-| nodlink_w10_fin6 | ~639 MB |
-| nodlink_w10_sidewinder | ~639 MB |
-| nodlink_ws12 | ~359 MB |
-| nodlink_ubuntu | ~23 MB |
-| **Total raw → archive** | **2.31 GB → ~146 MB (zip, deflate)** |
-
 ## Usage
 
 Feed a scenario's compressed triples + ground truth to the investigation launcher:
@@ -85,12 +72,18 @@ python supplementary/evaluate_fullgraph_event.py \
 
 ## Distribution
 
-The archive is too large for this git repository. Host `themis_datasets.zip`
-on a release/share (e.g. GitHub Releases — supports files up to 2 GB, Zenodo, or
-institutional storage) and link it here:
+Both archives are hosted outside this repository (the dataset archive exceeds
+GitHub's 100 MB per-file limit). Host them on a release/share (e.g. GitHub
+Releases — supports files up to 2 GB, Zenodo, or institutional storage):
+
+| Archive | Contents | Size |
+|---|---|---|
+| `themis_datasets.zip` | Converted provenance graphs + ground truth + hop2-compressed inputs | ~146 MB |
+| `provseek_code.zip` | ProVSeek baseline source code (sanitized: code only, no data, no secrets) | ~95 KB |
 
 ```
 https://<your-release-url>/themis_datasets.zip
+https://<your-release-url>/provseek_code.zip
 ```
 
 Reproduction from raw sources is also possible with the original dataset zips
