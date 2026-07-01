@@ -86,7 +86,7 @@ def annotate_segment(segment, emal_list, get_answer_fn):
         emal=", ".join(emal_list),
         sequence=seq_text,
     )
-    reasoning, answer, stats = get_answer_fn(prompt, "deepseek-ai/DeepSeek-R1")
+    reasoning, answer, stats = get_answer_fn(prompt)
     try:
         m = re.search(r'\{[^{}]+\}', answer, re.DOTALL)
         annotation = json.loads(m.group()) if m else {

@@ -66,7 +66,7 @@ def time_windows_scan(log_file, alert, collection_name):
         while json_format:
             try:
                 LLM_Api_recall_count += 1
-                reasoning_content, answer_content, stats = get_answer(prompt, 'deepseek-ai/DeepSeek-R1')
+                reasoning_content, answer_content, stats = get_answer(prompt)
                 attack_result_json = parse_text2json(answer_content)
                 tokens = stats.get('tokens', {})
                 total_completion_tokens += tokens.get('completion', 0)
@@ -138,7 +138,7 @@ def neighbor_scan(log_file, alert, collection_name):
         while json_format:
             try:
                 LLM_Api_recall_count += 1
-                reasoning_content, answer_content, stats = get_answer(prompt, 'deepseek-ai/DeepSeek-R1')
+                reasoning_content, answer_content, stats = get_answer(prompt)
                 tokens = stats.get('tokens', {})
                 total_completion_tokens += tokens.get('completion', 0)
                 total_prompt_tokens += tokens.get('prompt', 0)

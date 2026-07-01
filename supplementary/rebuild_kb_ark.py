@@ -1,11 +1,9 @@
 """Rebuild a Zilliz KB collection with Ark doubao-embedding-vision (2048-dim).
 
-Why: Tencent lke-text-embedding-v1 quota is exhausted; Themis RAG query embedding
-now uses Ark doubao. The KB must live in the SAME vector space, so we export each
-source collection's metadata, re-embed its `evidence_set` with doubao, and insert
-into a new <src>_doubao collection. KB CONTENT (annotated sequences/phases) is
-unchanged — only the embedding model is swapped (FINAL plan §10; integrity: same
-model for index and query).
+Exports each source collection's metadata, re-embeds its `evidence_set` with
+doubao, and inserts into a new <src>_doubao collection. KB content (annotated
+sequences/phases) is unchanged — only the embedding model is set, keeping the
+index and query in the same vector space.
 
 Usage:
   python rebuild_kb_ark.py --src attack_pattern_s1_s2s3s4 \

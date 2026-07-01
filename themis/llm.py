@@ -1,15 +1,16 @@
-"""LLM call wrapper (Volcengine Ark, env-driven).
+"""LLM call wrapper (Volcengine Ark).
 
-``get_answer`` returns ``(reasoning, answer, stats)``. Model is
-env-overridable (``ARK_MODEL=ark-code-latest``). Signature is stable so the
-investigation loop, KB annotator, and story generator all share one client.
+``get_answer`` returns ``(reasoning, answer, stats)``. The model resolves to
+``ARK_MODEL`` (default ``ark-code-latest``); ``model_name`` is an optional
+caller override. Signature is stable so the investigation loop, KB annotator,
+and story generator all share one client.
 """
 import os
 import time
 
 from openai import OpenAI
 
-from .config import ARK_BASE_URL, ARK_RETRIES
+from .config import ARK_BASE_URL, ARK_MODEL, ARK_RETRIES
 
 _client = OpenAI(
     api_key=os.environ.get("ARK_API_KEY", ""),
@@ -17,12 +18,12 @@ _client = OpenAI(
 )
 
 
-def get_answer(question, model_name):
+def get_answer(question, model_name=None):
     """Call the LLM with retry/backoff. Returns (reasoning, answer, stats)."""
     stats = {
         'tokens': {'prompt': 0, 'completion': 0, 'reasoning': 0, 'total': 0}
     }
-    model = os.environ.get("ARK_MODEL") or model_name  # ARK_MODEL overrides the legacy deepseek name
+    model = os.environ.get("ARK_MODEL") or model_name or ARK_MODEL
     response = None
     last = None
     for attempt in range(ARK_RETRIES):

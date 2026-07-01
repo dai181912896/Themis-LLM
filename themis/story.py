@@ -159,7 +159,7 @@ def generate_story(cache_path, output_path, kb_path=None):
     )
 
     print(f"[StoryGen] Calling LLM with Pgen prompt ({len(prompt)} chars)...")
-    reasoning, answer, stats = get_answer(prompt, "deepseek-ai/DeepSeek-R1")
+    reasoning, answer, stats = get_answer(prompt)
     tokens = stats.get("tokens", {}).get("total", 0)
 
     if not answer.strip().startswith("#"):

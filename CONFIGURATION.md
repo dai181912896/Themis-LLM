@@ -22,7 +22,6 @@ cp .env.example .env
 | `ARK_EMBEDDING_MODEL` | Embedding model (default `doubao-embedding-vision`, 2048-dim) | — |
 | `ZILLIZ_TOKEN` | Zilliz/Milvus Kill Chain KB token | https://cloud.zilliz.com/ |
 | `ZILLIZ_URI` | Zilliz cluster URI (default set in `themis/config.py`) | — |
-| `TENCENT_SECRET_ID` / `TENCENT_SECRET_KEY` | Optional: legacy Tencent LKEAP embeddings (used only when `ARK_API_KEY` is unset) | https://console.cloud.tencent.com/cam/capi |
 
 ## Behavior flags (env-overridable)
 
