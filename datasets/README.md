@@ -82,8 +82,8 @@ Releases — supports files up to 2 GB, Zenodo, or institutional storage):
 | `provseek_code.zip` | ProVSeek baseline source code (sanitized: code only, no data, no secrets) | ~95 KB |
 
 ```
-https://<your-release-url>/themis_datasets.zip
-https://<your-release-url>/provseek_code.zip
+https://github.com/dai181912896/Themis-LLM/releases/download/datasets-v1/themis_datasets.zip
+https://github.com/dai181912896/Themis-LLM/releases/download/datasets-v1/provseek_code.zip
 ```
 
 Reproduction from raw sources is also possible with the original dataset zips
