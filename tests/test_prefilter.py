@@ -1,4 +1,3 @@
-"""Unit tests for themis.prefilter — batch dedup + cache-I/O + learned-rule filter."""
 import re
 
 from themis.prefilter import dedup_chunk, is_cache_io, filter_chunk
@@ -22,7 +21,7 @@ def test_is_cache_io_prefetch_read():
 
 
 def test_is_cache_io_not_rw_action():
-    assert not is_cache_io("certutil fork payload.exe")  # action=fork, not read/write
+    assert not is_cache_io("certutil fork payload.exe")
 
 
 def test_is_cache_io_non_cache_path():
@@ -31,8 +30,8 @@ def test_is_cache_io_non_cache_path():
 
 def test_filter_drops_cache_keeps_real():
     chunk = [
-        "explorer read c:/users/u/appdata/local/microsoft/windows/webcachev01.dat",  # cache -> drop
-        "mimikatz read c:/users/u/secrets.bin",                                       # real -> keep
+        "explorer read c:/users/u/appdata/local/microsoft/windows/webcachev01.dat",
+        "mimikatz read c:/users/u/secrets.bin",
     ]
     kept, st = filter_chunk(chunk, learned_rules=[], enable_dedup=True, enable_cache=True)
     assert "mimikatz read c:/users/u/secrets.bin" in kept
@@ -41,12 +40,11 @@ def test_filter_drops_cache_keeps_real():
 
 
 def test_filter_protects_detected_ioc():
-    # certutil is detected -> protected even though it touches a cache path
     chunk = ["certutil write c:/users/u/appdata/local/foo/cache"]
     kept, st = filter_chunk(chunk, learned_rules=[], protected_basenames={"certutil"},
                             enable_dedup=True, enable_cache=True)
     assert len(kept) == 1
-    assert st["cache_io"] == 0  # protected -> not counted as cache_io drop
+    assert st["cache_io"] == 0
 
 
 def test_filter_learned_rule_applies():

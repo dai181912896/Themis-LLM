@@ -1,10 +1,3 @@
-"""LLM call wrapper (Volcengine Ark).
-
-``get_answer`` returns ``(reasoning, answer, stats)``. The model resolves to
-``ARK_MODEL`` (default ``ark-code-latest``); ``model_name`` is an optional
-caller override. Signature is stable so the investigation loop, KB annotator,
-and story generator all share one client.
-"""
 import os
 import time
 
@@ -19,7 +12,6 @@ _client = OpenAI(
 
 
 def get_answer(question, model_name=None):
-    """Call the LLM with retry/backoff. Returns (reasoning, answer, stats)."""
     stats = {
         'tokens': {'prompt': 0, 'completion': 0, 'reasoning': 0, 'total': 0}
     }

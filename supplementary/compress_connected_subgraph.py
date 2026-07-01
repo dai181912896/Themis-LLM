@@ -1,16 +1,3 @@
-"""4-layer connected-subgraph compression (FINAL plan §2.1).
-
-Label-blind: uses only IOC *seed* attrs (the given alert) + graph structure.
-Never reads the `label` field for any compression decision (Gate0-G0-03/D3).
-If gold coverage < 1.0, reports AS-IS (no re-compress).
-
-Layers:
-  1 structural : IOC-seed bidirectional BFS (hop), induced subgraph
-  2 time       : optional window around seed first-seen (default OFF)
-  3 semantic   : action-priority trim (fork/write/connect > recv > load > read)
-  4 aggregate  : dedup by (src,action,dst), keep first+last by ts
-Deterministic BFS/trim tie-break by edge_id (Gate0-G0-20).
-"""
 import argparse
 import json
 import os
@@ -79,20 +66,13 @@ def compress(edges_path, seeds_path, gold_path, out_dir, hop=2, max_edges=5000,
         n, h = front.popleft()
         if h >= hop:
             continue
-        for m in sorted(adj.get(n, ())):  # sorted for determinism
+        for m in sorted(adj.get(n, ())):
             if m not in reached:
                 reached.add(m)
                 front.append((m, h + 1))
 
     cand = [e for e in edges if e["s"] in reached and e["d"] in reached]
 
-    # Revised-B: frontier-edge retention (label-blind, method-only). For each
-    # REACHED process node, also keep its top-K highest-priority edges to
-    # UNREACHED neighbors. This captures attack edges that sit one hop beyond
-    # the BFS radius (e.g. procdump64 ->write-> lsass credential-dump at hop3)
-    # WITHOUT re-BFS from those neighbors (so a high-degree hub like lsass does
-    # not explode the graph). Restricted to high-priority actions (>=4:
-    # fork/execute/start/write/delete/connect/sock_send) to avoid read/load noise.
     frontier_k = int(os.environ.get("THEMIS_FRONTIER_K", "0"))
     if frontier_k > 0:
         by_src = defaultdict(list)

@@ -1,9 +1,3 @@
-"""Thin CLI shim — delegates to ``themis.story`` (attack story generation).
-
-Preserved so existing invocations
-(``python supplementary/story_generator.py --cache ... --out ... [--kill-chain ...]``)
-keep working. The real implementation lives in ``themis/story.py``.
-"""
 import argparse
 import os
 import sys

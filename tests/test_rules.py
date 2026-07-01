@@ -1,4 +1,3 @@
-"""Unit tests for themis.rules — persisted noise-rule store."""
 import json
 import re
 import threading
@@ -29,15 +28,15 @@ def test_add_and_load_roundtrip(tmp_path):
 def test_add_dedup_by_regex(tmp_path):
     p = str(tmp_path / "r.json")
     add_patterns(p, [{"regex": "prefetch"}])
-    assert add_patterns(p, [{"regex": "prefetch"}]) == 0  # duplicate regex
+    assert add_patterns(p, [{"regex": "prefetch"}]) == 0
     assert len(load_rules(p)) == 1
 
 
 def test_pattern_matches_action_filter():
     pat = Pattern(regex="cache", action="read", compiled=re.compile("cache"))
     assert pattern_matches(pat, "read", "appdata/local/x/cache")
-    assert not pattern_matches(pat, "write", "appdata/local/x/cache")  # action filter
-    assert not pattern_matches(pat, "read", "nothing-here")            # no regex match
+    assert not pattern_matches(pat, "write", "appdata/local/x/cache")
+    assert not pattern_matches(pat, "read", "nothing-here")
 
 
 def test_concurrent_append_no_corruption(tmp_path):
@@ -56,7 +55,7 @@ def test_concurrent_append_no_corruption(tmp_path):
 
     data = json.loads(open(p, encoding="utf-8").read())
     regexes = [pp["regex"] for pp in data["patterns"]]
-    assert len(regexes) == len(set(regexes))              # no duplicates, no corruption
+    assert len(regexes) == len(set(regexes))
     assert "seed" in regexes
-    assert len(regexes) == 1 + 4 * 25                      # all present
-    assert data["stats"]["learned"] == 1 + 4 * 25          # seed + concurrent adds
+    assert len(regexes) == 1 + 4 * 25
+    assert data["stats"]["learned"] == 1 + 4 * 25

@@ -1,14 +1,3 @@
-"""Node-level TPR/FPR/precision (strict, common basis across methods).
-
-GT node   = a graph node whose basename matches a gold IoC basename
-            (the user's definition: "events containing that node are malicious"
-             <=> the node IS a ground-truth malicious IoC).
-Pred node = a graph node whose basename matches a method's predicted entity.
-Universe  = all distinct node basenames in the full graph.
-TP = pred intersection gold, FP = pred - gold, FN = gold - pred, TN = universe - (gold union pred).
-NO event multiplication, NO 2-hop relaxation -- strict per-node judgment.
-Matching is basename/normalized/ip (relaxed, same as evaluate_fullgraph_event).
-"""
 import argparse
 import json
 import os

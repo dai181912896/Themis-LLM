@@ -1,26 +1,3 @@
-"""Persisted noise-rule store (learned by the runtime analyzer).
-
-``rules.json`` holds patterns the parallel noise analyzer discovers during an
-investigation and persists across runs. The pre-filter (``themis.prefilter``)
-reads this file each batch; the analyzer (``themis.noise_analyzer``) appends to
-it. Writes are thread-safe and atomic (temp + ``os.replace``) so a concurrent
-reader never sees a partial file.
-
-Schema::
-
-    {
-      "version": 1,
-      "updated_utc": "2026-07-01T12:00:00+00:00",
-      "patterns": [
-        {"regex": "appdata/local/[^/]+/cache", "action": "read",
-         "reason": "browser cache hit", "source": "analyzer",
-         "added_utc": "..."}
-      ],
-      "stats": {"learned": 3}
-    }
-
-A missing or corrupt file is treated as no rules (``[]``) — never raises.
-"""
 import json
 import os
 import re
@@ -29,13 +6,13 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 _LOCK = threading.Lock()
-_COMPILED_CACHE = {}  # path -> (mtime, [Pattern])
+_COMPILED_CACHE = {}
 
 
 @dataclass
 class Pattern:
     regex: str
-    action: str            # "read" | "write" | "load" | "connect" | "*" (or "read|write")
+    action: str
     reason: str = ""
     source: str = "analyzer"
     compiled: re.Pattern = None
@@ -54,14 +31,12 @@ def _atomic_write(path, data):
 
 
 def _actions(spec: str) -> set:
-    """Expand an action spec like 'read|write' or '*' into a set of actions."""
     if not spec or spec == "*":
         return {"*"}
     return {a.strip() for a in spec.split("|") if a.strip()}
 
 
 def load_rules(path):
-    """Return list[Pattern] (compiled), cached by file mtime. [] if missing/corrupt."""
     try:
         mtime = os.path.getmtime(path)
     except OSError:
@@ -95,11 +70,6 @@ def load_rules(path):
 
 
 def add_patterns(path, patterns, source="analyzer"):
-    """Append new patterns (dedup by regex), atomic write. Returns count added.
-
-    ``patterns`` is an iterable of dicts with keys ``regex`` (required),
-    ``action`` (default "*"), ``reason`` (default ""). Thread-safe.
-    """
     with _LOCK:
         try:
             with open(path, encoding="utf-8") as f:
@@ -127,12 +97,11 @@ def add_patterns(path, patterns, source="analyzer"):
             stats = data.setdefault("stats", {})
             stats["learned"] = stats.get("learned", 0) + added
             _atomic_write(path, data)
-            _COMPILED_CACHE.pop(path, None)  # invalidate so next load recompiles
+            _COMPILED_CACHE.pop(path, None)
         return added
 
 
 def pattern_matches(pattern: Pattern, action: str, norm_object: str) -> bool:
-    """True if ``pattern`` applies to a triple with the given action + object."""
     if not pattern.compiled or not norm_object:
         return False
     if "*" not in _actions(pattern.action) and action not in _actions(pattern.action):

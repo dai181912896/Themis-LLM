@@ -1,13 +1,3 @@
-"""Run NodLink's INVESTIGATION step (only) on a NODLINK-format edges.jsonl.
-
-NodLink's investigation engine (atlas_investigate.InvestigationEngine) is
-STANDALONE (no VAE/FastText model needed) — it does bidirectional provenance
-propagation from a seed alert node. This isolates the investigation step from
-NodLink's detection step, for a fair investigation-only comparison vs Themis.
-
-Builds a networkx DiGraph from edges.jsonl, seeds with the alert entity, runs
-propagate(f_depth=5, b_depth=5), extracts discovered basenames -> prediction.json.
-"""
 import argparse
 import json
 import os
@@ -18,7 +8,7 @@ import networkx as nx
 NODLINK_ETW = "D:/git_investigation/NODLINK/src/ETW"
 if NODLINK_ETW not in sys.path:
     sys.path.insert(0, NODLINK_ETW)
-from atlas_investigate import InvestigationEngine, find_seed_in_graph, extract_basenames  # noqa: E402
+from atlas_investigate import InvestigationEngine, find_seed_in_graph, extract_basenames
 
 
 def build_graph_from_edges(edges_path):

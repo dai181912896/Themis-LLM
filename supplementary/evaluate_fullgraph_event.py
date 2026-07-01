@@ -1,17 +1,3 @@
-"""Full-graph EVENT-level TPR/FPR (paper's native metric, FINAL plan §11.2).
-
-Projects a method's predicted entities onto ALL events of the full graph and
-computes event-level TPR/FPR — the SAME basis as detectors (NodLink/KnowHow/
-OCR-APT), so they can be ranked together. GT event = any endpoint matches a GT
-IoC (weak_entity_projection). Predicted event = any endpoint matches a predicted
-entity. NO substring (entity_match relaxed, set-based for speed).
-
-Also emits a per-IoC event-density breakdown (why attacks differ — e.g. FIN6's
-lazagne1 lights up far more gold events than APT29's mimikatz2). Computed with a
-REVERSE MAP (basename/normalized/ip -> gold-IoC index set) in the SAME single
-pass as the aggregate, so it is O(edges) with O(1) lookups — does NOT loop over
-IoCs inside the edge loop (that was the per-IoC timeout).
-"""
 import argparse
 import collections
 import json
@@ -46,7 +32,6 @@ def _hit(attr, keys):
 
 
 def _build_reverse_map(gold):
-    """key -> set of gold-indices, for norm/base/ip keys. Built ONCE."""
     norm2ioc = collections.defaultdict(set)
     base2ioc = collections.defaultdict(set)
     ip2ioc = collections.defaultdict(set)
@@ -61,7 +46,6 @@ def _build_reverse_map(gold):
 
 
 def _gold_hit_set(attr, norm2ioc, base2ioc, ip2ioc):
-    """Set of gold-indices hit by attr. O(1) dict lookups, no per-IoC loop."""
     hit = set()
     if not attr:
         return hit
@@ -107,8 +91,8 @@ def evaluate(edges_path, ground_truth, prediction_path, out):
 
     tp = fp = tn = fn = 0
     n_events = 0
-    ioc_ev = [0] * len(gold)          # event count per gold IoC (deduped within edge)
-    pred_ev = [0] * len(pred)         # event count per predicted entity (FP analysis)
+    ioc_ev = [0] * len(gold)
+    pred_ev = [0] * len(pred)
 
     for s, o in _iter_endpoints(edges_path):
         n_events += 1

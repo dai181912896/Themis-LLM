@@ -1,9 +1,3 @@
-"""Thin CLI shim — delegates to ``themis.kb`` (Kill-Chain KB annotation).
-
-Preserved so existing invocations
-(``python supplementary/kill_chain_annotator.py --log ... --entities ... --out ...``)
-keep working. The real implementation lives in ``themis/kb.py``.
-"""
 import argparse
 import os
 import sys

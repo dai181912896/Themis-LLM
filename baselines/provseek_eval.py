@@ -1,9 +1,3 @@
-"""
-ProVSeek FULL pipeline on NODLINK W10/WS12 datasets.
-In-memory event search + LLM agent (RAG + summary).
-Based on provseek_s1_eval.py pattern.
-Records time + token usage.
-"""
 import os, json, re, time, sys
 from pathlib import Path
 from collections import defaultdict
@@ -99,11 +93,6 @@ reasoner = CodeAgent(tools=[], model=get_model(reasoning_model_id), add_base_too
 
 @tool
 def search_events(entity_name: str) -> str:
-    """Search provenance events by entity name. Returns matching events.
-
-    Args:
-        entity_name: Name or partial name of a process, file, or IP to search for.
-    """
     nl = entity_name.lower().strip()
     matched = {n for n in entity_events if nl in n.lower()}
     if not matched:
@@ -126,7 +115,6 @@ def search_events(entity_name: str) -> str:
 
 @tool
 def list_entities() -> str:
-    """List all unique entities in the dataset."""
     subjects = sorted(set(e["subject"] for e in events))
     lines = [f"Total events: {len(events)}, Unique subjects: {len(subjects)}"]
     for s in subjects[:30]:

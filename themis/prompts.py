@@ -1,25 +1,6 @@
-"""LLM prompts for the iterative causal reasoning loop (Stage 3).
-
-Three prompt builders, all f-string templates:
-
-  generate_normal_prompt   — time-window mode
-  generate_backward_prompt — MAIN causal prompt used by neighbor_scan
-  generate_forward_prompt  — reverse-causal mode
-
-Placeholders (interpolated, not ``.format``):
-  {current_window_sequence}, {previous_window_summary}, {payload},
-  {rag_context}, {detected}, {future_window_summary}
-"""
 
 
 def generate_noise_analysis_prompt(chunk_text, detected_entities):
-    """Prompt for the runtime noise analyzer.
-
-    Identifies redundant normal noise (cache reads, repeated benign housekeeping,
-    system self-I/O) NOT part of the attack chain, and generalizes each into a
-    regex on the normalized object path (lowercase, forward slashes) plus the
-    action(s) it applies to. Never flags entities in ``detected_entities``.
-    """
     detected_list = ", ".join(detected_entities) if detected_entities else "(none yet)"
     prompt = f"""You are a provenance-noise analyst. You are given a batch of system audit
 events formatted as subject-action-object triples from an active attack investigation.
@@ -58,7 +39,6 @@ If the batch contains no generalizable noise, return {{"noise_patterns": []}}.
 
 
 def generate_normal_prompt(current_window_sequence, previous_window_summary, payload, rag_context, detected):
-    """Generate prompt for the normal (time-window) investigation mode."""
     prompt = f"""You are a security incident forensics expert specializing in attack investigation using heterogeneous system logs. Logs are preprocessed as subject-action-object triples. Below is a sample:
     Current task: host IP is 192.168.17.128. IDS reported malicious entities that may include domains, IPs, or programs. Detected alert entity: ({payload}. Previously detected suspicious entities: {detected}. This indicates potential attack activity. The system traverses logs starting from the alert node in chronological order. Each window must analyze the current log sequence and incorporate summaries from prior windows to form a continuous attack timeline.
 
@@ -94,9 +74,6 @@ def generate_normal_prompt(current_window_sequence, previous_window_summary, pay
 
 
 def generate_backward_prompt(current_window_sequence, previous_window_summary, payload, rag_context, detected):
-    """Generate the backward (causal) investigation prompt - the MAIN prompt used by neighbor_scan.
-    This prompt drives the iterative causal reasoning loop (Paper Section 4.3).
-    """
     prompt = f"""You are a security incident forensics expert specializing in attack investigation using heterogeneous system logs. Logs are preprocessed as subject-action-object triples.
 
     Current task: host IP is 192.168.17.130. IDS reported malicious entities that may include domains, IPs, or programs. Detected alert entity: ({payload}. Previously detected suspicious entities: {detected}. This indicates potential attack activity. The system traverses logs starting from the alert node in chronological order. Each window must analyze the current log sequence and incorporate summaries from prior windows to form a continuous attack timeline.
@@ -179,7 +156,6 @@ def generate_backward_prompt(current_window_sequence, previous_window_summary, p
 
 
 def generate_forward_prompt(current_window_sequence, future_window_summary, payload, rag_context):
-    """Generate the forward (reverse-causal) investigation prompt."""
     prompt = f"""You are a security incident response expert specializing in attack investigation using heterogeneous system logs. Logs are preprocessed as subject-action-object triples. Below is a sample:
     - c:/windows/system32/vssvc.exe_2564 executed c:/windows/system32/vssvc.exe
     - c:/windows/system32/searchfilterhost.exe_3340 read c:/windows/registration/r000000000006.clb

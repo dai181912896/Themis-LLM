@@ -1,14 +1,3 @@
-"""Rebuild a Zilliz KB collection with Ark doubao-embedding-vision (2048-dim).
-
-Exports each source collection's metadata, re-embeds its `evidence_set` with
-doubao, and inserts into a new <src>_doubao collection. KB content (annotated
-sequences/phases) is unchanged — only the embedding model is set, keeping the
-index and query in the same vector space.
-
-Usage:
-  python rebuild_kb_ark.py --src attack_pattern_s1_s2s3s4 \
-      [--src attack_pattern_s3_s1s2s4] [--src attack_pattern_s4_s1s2s3]
-"""
 import argparse
 import os
 import sys
@@ -35,7 +24,6 @@ def _ark_client():
 
 
 def _embed_batch(texts, model="doubao-embedding-vision"):
-    # Ark embedding API caps input at 10/request; use 8 for safety.
     BS = 8
     out, i, cli = [], 0, _ark_client()
     while i < len(texts):

@@ -1,15 +1,3 @@
-"""Attack investigation main loop (Stage 3): iterative BFS expansion over the
-provenance graph with RAG-backed LLM causal reasoning.
-
-``neighbor_scan`` is the primary path: starting from the IDS alert entity it
-extracts adjacency-prioritized neighbor sequences, retrieves Kill Chain
-knowledge from the KB, reasons with the LLM (backward causal prompt), and
-feeds any newly detected entities back into the BFS frontier. ``time_windows_scan``
-is the chronological-window alternative.
-
-Output format (results / entities / cost, one per line) is preserved exactly
-so ``supplementary.run_themis_investigation.parse_output`` keeps working.
-"""
 import json
 import os
 import time
@@ -116,10 +104,6 @@ def neighbor_scan(log_file, alert, collection_name):
     total_reasoning_tokens = 0
     total_all_tokens = 0
 
-    # --- Batch pre-filter + optional runtime noise analyzer (Stage 2 opt.) ---
-    # Seed the learned-rules file so the analyzer has a place to write; the
-    # hardcoded cache-I/O patterns live in config.CACHE_IO_SEED (applied by
-    # filter_chunk), so rules.json holds only analyzer-learned patterns.
     analyzer = NoiseAnalyzer(config.NOISE_RULES_PATH) if config.noise_analyzer_enabled() else None
     if analyzer:
         analyzer.start()
@@ -128,19 +112,15 @@ def neighbor_scan(log_file, alert, collection_name):
     while chunk_list_queue:
         chunk = chunk_list_queue.popleft()
 
-        # Analyze the RAW chunk in parallel (before filtering) so the analyzer
-        # sees cache/noise lines the filter is about to drop.
         if analyzer:
             analyzer.submit(chunk, alert_entites)
 
-        # Reload learned rules each batch (feedback loop: patterns learned early
-        # in the run, or persisted from a prior run, apply to later batches).
         learned = rules.load_rules(config.NOISE_RULES_PATH)
-        protected = {_basename(e) for e in alert_entites}   # never filter IoCs
+        protected = {_basename(e) for e in alert_entites}
         chunk, pf_stats = filter_chunk(chunk, learned, protected)
         if not chunk:
             print(f"[prefilter] chunk fully filtered (dropped {pf_stats['total_dropped']}); skipping LLM call")
-            continue                                            # saves an embedding/KB/LLM call
+            continue
         if pf_stats["total_dropped"]:
             print(f"[prefilter] kept {pf_stats['kept']} (dedup {pf_stats['deduped']}, "
                   f"cache_io {pf_stats['cache_io']}, learned {pf_stats['learned']})")
@@ -217,7 +197,6 @@ def neighbor_scan(log_file, alert, collection_name):
 
 
 def run(log_file, alert, collection_name, output):
-    """Run neighbor-based investigation and write results/entities/cost to output."""
     results, alert_entities, cost_results = neighbor_scan(
         log_file, alert, collection_name
     )

@@ -1,10 +1,3 @@
-"""Run Themis investigation on a standard triples file (Stage 3 wrapper).
-
-Builds a Themis-load-compatible input (2-line header + triples), invokes the
-original attack_Investigation_byLLM.py via subprocess with graph-mode + Ark env
-(EXACT paper prompts/logic preserved, no replication drift), then parses output
-into clean artifacts.
-"""
 import argparse
 import ast
 import json
@@ -30,9 +23,6 @@ DEFAULT_ENV = {
     "THEMIS_HUB_EXPANSION": "1",
     "THEMIS_FILTER_SYSDLL": "1",
     "THEMIS_SLEEP": os.environ.get("THEMIS_SLEEP", "3"),
-    # Force UTF-8 for the subprocess: Windows console defaults to GBK, which
-    # crashes `print(prompt)` when the prompt contains non-GBK chars (reached
-    # once the launcher-aware expansion surfaces cmd/powershell neighborhoods).
     "PYTHONUTF8": "1",
     "PYTHONIOENCODING": "utf-8",
 }

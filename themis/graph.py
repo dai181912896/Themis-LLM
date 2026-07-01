@@ -1,15 +1,3 @@
-"""Provenance graph: triple parsing, adjacency, and adjacency-prioritized
-neighbor expansion (Stage 2 of the pipeline).
-
-NO substring matching — adjacency is always on parsed subject/object via
-``supplementary.normalize.entity_match``. Hub-aware expansion surfaces a
-dispatcher's sibling fork-children so the investigator can reach payloads
-behind cmd/powershell, and self-extraction noise is capped so attack signal
-isn't crowded out.
-
-Imports ``chunk_list`` from ``themis.logs``; ``themis.logs.line_mentions_entity``
-imports this module lazily, so there is no import-time cycle.
-"""
 import json
 import os
 import re
@@ -22,9 +10,6 @@ from supplementary.normalize import entity_match, normalize_entity, _basename
 from .logs import chunk_list
 
 
-# --------------------------------------------------------------------------
-# Triple parsing + adjacency (was supplementary/graph_utils.py)
-# --------------------------------------------------------------------------
 @dataclass
 class Triple:
     subject: str = ""
@@ -36,12 +21,6 @@ class Triple:
 
 
 def parse_triple(line: str) -> Triple:
-    """Parse one log line into a Triple. Returns empty Triple for headers/garbage.
-
-    Supports both:
-      - ATLAS space format:  "subj action obj"
-      - NODLINK TSV format:  "subj\\taction\\tobj\\tts\\tedge_id"
-    """
     s = "" if line is None else str(line).strip()
     if not s:
         return Triple()
@@ -67,7 +46,6 @@ def parse_triple(line: str) -> Triple:
 
 
 def build_adjacency(triples: Iterable[Triple]) -> dict:
-    """normalized(entity) -> list[Triple] incident (as subject or object)."""
     idx = defaultdict(list)
     for t in triples:
         if t.subject:
@@ -78,7 +56,6 @@ def build_adjacency(triples: Iterable[Triple]) -> dict:
 
 
 def get_incident_edges(entity: str, triples: List[Triple], mode: str = "relaxed") -> List[Triple]:
-    """All triples whose subject OR object matches entity (no substring)."""
     out = []
     for t in triples:
         if (t.subject and entity_match(entity, t.subject, mode).matched) or \
@@ -88,7 +65,6 @@ def get_incident_edges(entity: str, triples: List[Triple], mode: str = "relaxed"
 
 
 def is_connected_subgraph(triples: Iterable[Triple]) -> bool:
-    """True iff endpoints of these triples form a single connected component."""
     edges = [t for t in triples if t.subject and t.object]
     if not edges:
         return True
@@ -116,10 +92,6 @@ def is_connected_subgraph(triples: Iterable[Triple]) -> bool:
 
 def get_neighbor_lines(entity: str, lines: Iterable[str], mode: str = "relaxed",
                        trace_path: Optional[str] = None, round_no: Optional[int] = None) -> List[str]:
-    """Graph-mode neighbor extraction: keep lines whose parsed subject/object matches entity.
-
-    Appends one JSON record per kept line to trace_path (if set), for audit.
-    """
     kept: List[str] = []
     trace: List[dict] = []
     for line in lines:
@@ -149,9 +121,6 @@ def get_neighbor_lines(entity: str, lines: Iterable[str], mode: str = "relaxed",
     return kept
 
 
-# --------------------------------------------------------------------------
-# Expansion: hub-aware neighbor discovery + noise filtering (was utils.py)
-# --------------------------------------------------------------------------
 _HUBS = {"cmd", "powershell", "wscript", "cscript", "mshta", "wmic",
          "rundll32", "explorer", "powershell_ise"}
 _HUB_GENERIC = {"wordpad", "conhost", "calc", "dwellm", "searchindexer",
@@ -162,14 +131,10 @@ _HUB_GENERIC = {"wordpad", "conhost", "calc", "dwellm", "searchindexer",
 
 
 def _is_noise_entity(entity):
-    """Stub — noise filtering is done POST-HOC during evaluation, not during BFS.
-    This exists so the FILTER_NOISE block and the investigation loop import cleanly."""
     return False
 
 
 def _is_noise_edge(line):
-    """Filter universal startup noise: system DLL/image loads, prefetch.
-    (action=load of system32/syswow64 .dll/.pyd/.sys — every process does this.)"""
     t = parse_triple(line)
     if t.action == "load":
         o = t.object.lower()
@@ -182,19 +147,14 @@ def _is_noise_edge(line):
 
 
 _SELFEXTRACT_RE = re.compile(
-    r"_mei\d+[/\\]"                                       # PyInstaller self-extract
-    r"|appdata/local/temp/[^/\s]*\.(pyd|dll)\b"           # temp pyd/dll
-    r"|__psscriptpolicytest_[^/\s]*\.(ps1|psm1)\b"        # PowerShell policy-test noise (NOT real payloads like invoke-mimikatz.ps1 which live in desktop/shell/)
-    r"|appdata/local/temp/[^/\s]*\.(cs|cmdline|out)\b",   # .NET/PowerShell compiled temp artifacts
+    r"_mei\d+[/\\]"
+    r"|appdata/local/temp/[^/\s]*\.(pyd|dll)\b"
+    r"|__psscriptpolicytest_[^/\s]*\.(ps1|psm1)\b"
+    r"|appdata/local/temp/[^/\s]*\.(cs|cmdline|out)\b",
     re.IGNORECASE)
 
 
 def _cap_selfextract(lines, max_keep=8):
-    """Cap PyInstaller self-extraction artifacts (_mei<N>/* temp .pyd/.dll) so
-    they don't crowd out sibling-tool discovery. Keeps ALL non-self-extract lines
-    + up to max_keep self-extract lines. lazagne1 itself is still detected, so its
-    (legitimate-TP) PyInstaller events still count — this only limits how many
-    such lines the LLM sees per expansion."""
     keep, se = [], []
     for k in lines:
         if _SELFEXTRACT_RE.search(k):
@@ -205,11 +165,6 @@ def _cap_selfextract(lines, max_keep=8):
 
 
 def _hub_children_lines(entity, logs, mode="relaxed", cap=30):
-    """Hub-aware expansion: if `entity` is a CHILD of a dispatcher hub
-    (cmd/powershell/...), return the hub's OTHER fork-children lines so the
-    investigator sees sibling tools (e.g. certutil <- cmd -> mimikatz2).
-    Uses graph structure only (no labels); generic-benign children filtered.
-    """
     hubs = set()
     for line in logs:
         t = parse_triple(line)
@@ -228,11 +183,6 @@ def _hub_children_lines(entity, logs, mode="relaxed", cap=30):
             seen.add(cb)
             children.add(t.object)
             out.append(line.rstrip("\n"))
-    # Child-action evidence: also append each sibling's top-K action edges
-    # (execute/read/write/connect, system-noise filtered) so the LLM sees WHAT
-    # each sibling does (e.g. 'powershell read invoke-mimikatz.ps1', 'calc
-    # write X') and can emit it -> iterative expansion reaches the payload.
-    # Targeted (only hub siblings' actions), not broad.
     if os.environ.get("THEMIS_HUB_CHILD_ACTIONS") == "1":
         _prio = {"fork": 5, "execute": 5, "start": 5, "connect": 4,
                  "write": 4, "read": 1, "load": 2}
@@ -252,31 +202,17 @@ def _hub_children_lines(entity, logs, mode="relaxed", cap=30):
 
 
 def get_neighbor_entity_sequences(entity, logs):
-    """Neighbor extraction.
-
-    Graph mode (THEMIS_GRAPH_MODE=1) matches PARSED subject/object — NEVER
-    substring. Also applies hub-aware expansion, system-DLL-load filtering,
-    and self-extraction capping when the corresponding env flags are set.
-    Legacy substring path kept so previously reported numbers stay reproducible.
-    """
     if os.environ.get("THEMIS_GRAPH_MODE") == "1":
         try:
             mode = os.environ.get("THEMIS_MATCH_MODE", "relaxed")
             trace_path = os.environ.get("THEMIS_TRACE_PATH") or None
             kept = [k.rstrip("\n") for k in get_neighbor_lines(entity, logs, mode=mode, trace_path=trace_path)]
-            # Hub-aware expansion: if entity is a child of a dispatcher hub,
-            # also pull the hub's other children (sibling attack tools).
             if os.environ.get("THEMIS_HUB_EXPANSION") == "1":
                 kept += _hub_children_lines(entity, logs, mode)
-            # Filter universal system-DLL-load noise so attack signal is visible.
             if os.environ.get("THEMIS_FILTER_SYSDLL") == "1":
                 kept = [k for k in kept if not _is_noise_edge(k)]
-            # Cap PyInstaller self-extraction artifacts so sibling tools get budget.
             if os.environ.get("THEMIS_CAP_SELFEXTRACT") == "1":
                 kept = _cap_selfextract(kept)
-            # Filter noise entities (.NET temp dirs, random temp files, system profiles)
-            # to keep LLM context tight. Does NOT filter ground-truth IoCs (certutil,
-            # mimikatz, calc, procdump etc. don't match noise patterns).
             if os.environ.get("THEMIS_FILTER_NOISE") == "1":
                 kept = [k for k in kept
                         if not (_is_noise_entity(parse_triple(k).subject) and

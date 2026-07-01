@@ -1,4 +1,3 @@
-"""Pytest bootstrap: ensure the repo root is importable so ``themis`` resolves."""
 import os
 import sys
 

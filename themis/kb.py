@@ -1,18 +1,9 @@
-"""Kill-Chain Knowledge Base Annotation (Stage 1).
-
-Pipeline:
-  1. Malicious Events Extraction: filter raw logs by rel(l, Emal)
-  2. Phase-Aware Kill Chain Annotation: LLM(Pkill) annotates each event
-     segment with phase/behavior/entities/neighbors metadata
-  3. Output: annotated sequences ready for embedding + KB insertion
-"""
 import argparse
 import json
 import os
 import re
 import sys
 
-# Allow `python themis/kb.py` and `python -m themis.kb` from the repo root.
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.abspath(os.path.join(_HERE, ".."))
 if _ROOT not in sys.path:
@@ -52,7 +43,6 @@ Output ONLY the JSON object, no other text."""
 
 
 def extract_malicious_events(logs, emal_set):
-    """T = {l in L | rel(l, Emal) = 1}. Keep events related to malicious entities."""
     trace = []
     for line in logs:
         parts = line.strip().split("\t") if "\t" in line else line.strip().split()
@@ -71,12 +61,10 @@ def extract_malicious_events(logs, emal_set):
 
 
 def segment_events(trace, chunk_size=20):
-    """Split malicious trace into subsequences of <=N events (N=20)."""
     return [trace[i:i + chunk_size] for i in range(0, len(trace), chunk_size)]
 
 
 def annotate_segment(segment, emal_list, get_answer_fn):
-    """Call LLM with Pkill prompt to annotate one event segment."""
     seq_text = "\n".join(
         f"  [{i+1}] {e['subject']} {e['action']} {e['object']}"
         for i, e in enumerate(segment)
@@ -107,7 +95,6 @@ def annotate_segment(segment, emal_list, get_answer_fn):
 
 
 def build_kill_chain_kb(log_file, emal_file, output_file, chunk_size=20):
-    """Full pipeline: extract -> segment -> annotate -> output KB."""
     os.environ.setdefault("ARK_API_KEY", os.getenv("ARK_API_KEY", ""))
     os.environ.setdefault("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/coding/v3")
     os.environ.setdefault("ARK_MODEL", "ark-code-latest")
@@ -118,7 +105,7 @@ def build_kill_chain_kb(log_file, emal_file, output_file, chunk_size=20):
     with open(log_file, encoding="utf-8", errors="replace") as f:
         logs = [l.strip() for l in f if l.strip()]
     if logs and logs[0].startswith("["):
-        logs = logs[2:]  # skip NODLINK header
+        logs = logs[2:]
 
     with open(emal_file, encoding="utf-8") as f:
         emal_data = json.load(f)
@@ -160,7 +147,6 @@ def build_kill_chain_kb(log_file, emal_file, output_file, chunk_size=20):
     print(f"  Phase distribution: {phase_dist}")
     print(f"  -> {output_file}")
 
-    # Also export NDJSON for themis.vector_db.process_and_insert (Stage 1 step 3 wiring)
     ndjson_file = output_file.rsplit(".", 1)[0] + ".ndjson"
     with open(ndjson_file, "w", encoding="utf-8") as f:
         for i, u in enumerate(kb_units):

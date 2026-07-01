@@ -1,10 +1,3 @@
-"""Attack Story Generation (Stage 4).
-
-Transforms per-iteration reasoning outputs [A(1),...,A(T)] from the reasoning
-cache into a coherent, analyst-ready investigation report using the Pgen prompt.
-
-  G = LLM([A(1),...,A(T)], H(T), Pgen)
-"""
 import argparse
 import json
 import os
@@ -15,7 +8,7 @@ _ROOT = os.path.abspath(os.path.join(_HERE, ".."))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from .config import KILL_CHAIN_PHASES  # noqa: F401  (kept for downstream consumers)
+from .config import KILL_CHAIN_PHASES
 
 PGEN_PROMPT = """You are a senior security analyst writing a formal attack investigation report.
 
@@ -71,7 +64,6 @@ Generate the complete report now."""
 
 
 def load_reasoning_cache(cache_path):
-    """Load reasoning_cache.jsonl into a list of per-iteration outputs."""
     entries = []
     with open(cache_path, encoding="utf-8", errors="replace") as f:
         for line in f:
@@ -86,7 +78,6 @@ def load_reasoning_cache(cache_path):
 
 
 def format_reasoning_steps(entries):
-    """Format reasoning cache entries into readable text for the Pgen prompt."""
     blocks = []
     for i, entry in enumerate(entries):
         entities = entry.get("detected_suspicious_entities", [])
@@ -111,7 +102,6 @@ def format_reasoning_steps(entries):
 
 
 def load_kill_chain_context(kb_path):
-    """Load Kill Chain KB and format phase descriptions for the prompt."""
     if not kb_path or not os.path.exists(kb_path):
         return ""
     try:
@@ -133,7 +123,6 @@ def load_kill_chain_context(kb_path):
 
 
 def generate_story(cache_path, output_path, kb_path=None):
-    """Full pipeline: load cache -> format -> LLM(Pgen) -> output report."""
     os.environ.setdefault("ARK_API_KEY", os.getenv("ARK_API_KEY", ""))
     os.environ.setdefault("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/coding/v3")
     os.environ.setdefault("ARK_MODEL", "ark-code-latest")

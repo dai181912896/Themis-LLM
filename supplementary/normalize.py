@@ -1,11 +1,3 @@
-"""Entity/action normalization and matching — NO substring matching.
-
-strict  = normalized full equality
-relaxed = basename exact / IP-no-port exact (never a substring test)
-
-Every relaxed match returns a MatchResult.reason so adjacency/evaluation
-traces are auditable (FINAL plan §7.1 E1b, Gate0-G0-11/G0-13).
-"""
 import re
 from dataclasses import dataclass
 
@@ -18,7 +10,6 @@ _IP_RE = re.compile(r"^\d{1,3}(?:\.\d{1,3}){3}$")
 
 
 def normalize_entity(value) -> str:
-    """Lowercase, \\ -> /, strip quotes/brackets/whitespace. No semantic split."""
     if value is None:
         return ""
     v = str(value).strip()
@@ -40,17 +31,15 @@ def _basename(value) -> str:
     v = normalize_entity(value)
     if "/" in v:
         v = v.rsplit("/", 1)[-1]
-    v = v.split(":")[0]            # drop port
-    v = _PID_SUFFIX.sub("", v)     # payload.exe_2592 -> payload.exe
-    # strip executable/script extension so the alert 'certutil.exe' matches the
-    # bare process name 'certutil' (W10 stores subjects without .exe).
+    v = v.split(":")[0]
+    v = _PID_SUFFIX.sub("", v)
     v = re.sub(r"\.(exe|dll|bat|ps1|hta|vbs|sh|py|com|scr|sys)$", "", v)
     return v
 
 
 def _ip_no_port(value) -> str:
     v = normalize_entity(value)
-    return re.split(r"[:_]", v)[0]  # 124.1.2.3_8084 / 124.1.2.3:8084 -> 124.1.2.3
+    return re.split(r"[:_]", v)[0]
 
 
 def _is_ip(v: str) -> bool:
@@ -60,8 +49,8 @@ def _is_ip(v: str) -> bool:
 @dataclass
 class MatchResult:
     matched: bool
-    policy: str   # strict_normalized | basename_exact | ip_exact | none
-    reason: str   # human-readable, for audit trace
+    policy: str
+    reason: str
 
 
 def entity_keys(value) -> dict:
@@ -74,14 +63,12 @@ def entity_keys(value) -> dict:
 
 
 def entity_match(a, b, mode: str = "strict") -> MatchResult:
-    """Match two entity strings. mode = 'strict' | 'relaxed'. Never substring."""
     na, nb = normalize_entity(a), normalize_entity(b)
     if na and na == nb:
         return MatchResult(True, "strict_normalized", f"normalized({na})")
     if mode != "relaxed":
         return MatchResult(False, "none", "")
 
-    # IPs: compare on port-stripped form
     if _is_ip(na) or _is_ip(nb):
         ia, ib = _ip_no_port(a), _ip_no_port(b)
         if ia and ia == ib:
