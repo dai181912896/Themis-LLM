@@ -86,5 +86,12 @@ https://github.com/dai181912896/Themis-LLM/releases/download/datasets-v1/themis_
 https://github.com/dai181912896/Themis-LLM/releases/download/datasets-v1/provseek_code.zip
 ```
 
+### Baidu Netdisk (alternative mirror)
+
+The dataset is also available on Baidu Netdisk:
+
+- Link: <https://pan.baidu.com/s/1E-UfGho3w7zMp9T0F08k5w?pwd=fezk>
+- Extraction code: `fezk`
+
 Reproduction from raw sources is also possible with the original dataset zips
 (ATLAS, NodLink SimulatedW10/WS12/Ubuntu) plus the conversion scripts.

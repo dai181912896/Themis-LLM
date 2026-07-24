@@ -110,6 +110,8 @@ THEMIS is evaluated on:
 
 See `datasets/README.md` for preparation instructions.
 
+**Download:** [Baidu Netdisk](https://pan.baidu.com/s/1E-UfGho3w7zMp9T0F08k5w?pwd=fezk) (extraction code: `fezk`).
+
 ## Notes
 
 - All API keys are loaded from environment variables (`.env` file or system env).
